@@ -13,8 +13,9 @@ class App:
 
   def __init__(self):
 
-    appIsRunning = True
     self.cwd = os.getcwd()
+    self.cwd = self.cwd.replace("\\", "/")
+
     app = QtWidgets.QApplication(sys.argv)
 
     mainWindow = QtWidgets.QMainWindow()

@@ -36,6 +36,7 @@ class SolverUI:
   runButton: QtWidgets.QPushButton
 
 class UI:
+  caseName: str
   qt: Ui_MainWindow
 
   mainWindow: QtWidgets.QMainWindow

@@ -27,13 +27,46 @@ class Commands:
   def SaveAppConfig(self):
     config = ConfigParser()
 
-    caseName = self.ui.loadedCaseLabel.text().split("\\")[-1]
+    caseName = self.ui.caseName
     config["DEFAULT"]["lastCase"] = caseName
 
-    filePath = self.cwd + "App\config.ini"
+    filePath = self.cwd + "/App/config.ini"
 
     with open(filePath, "w") as file:
       config.write(file)
+
+  def ApplyCaseConfig(self):
+    config = ConfigParser()
+
+    filePath = self.cwd + "/Cases/" + self.ui.caseName + "/config.ini"
+    config.read(filePath)
+
+    try:
+      regionsColorIndexes = config.get("MeshUI", "regionsColorIndexes")
+      regionsColorIndexes = [int(colorIndexString) for colorIndexString in regionsColorIndexes.split(", ")]
+      boundariesColorIndexes = config.get("MeshUI", "boundariesColorIndexes")
+      boundariesColorIndexes = [int(colorIndexString) for colorIndexString in boundariesColorIndexes.split(", ")]
+
+      table = self.ui.meshUI.physicalVolumesTable
+      for i in range(table.rowCount()):
+        table.cellWidget(i,1).setCurrentIndex(regionsColorIndexes[i])
+      table = self.ui.meshUI.physicalBoundariesTable
+      for i in range(table.rowCount()):
+        table.cellWidget(i,1).setCurrentIndex(boundariesColorIndexes[i])
+
+      self.ui.neutronicsUI.nOfParticlesLabel.setText(config.get("NeutronicsUI", "nOfParticles"))
+      self.ui.neutronicsUI.nOfActiveBatchesLabel.setText(config.get("NeutronicsUI", "nOfActiveBatches"))
+      self.ui.neutronicsUI.criticalityCriteriaLabel.setText(config.get("NeutronicsUI", "criticalityConvergenceCriteria"))
+      self.ui.neutronicsUI.shannonEntropyCriteriaLabel.setText(config.get("NeutronicsUI", "shannonEntropyConvergenceCriteria"))
+
+      neutronicsBCs = config.get("NeutronicsUI", "neutronicsBCs")
+      neutronicsBCs = [int(colorIndexString) for colorIndexString in neutronicsBCs.split(", ")]
+
+      table = self.ui.neutronicsUI.BCTable
+      for i in range(table.rowCount()):
+        table.cellWidget(i,1).setCurrentIndex(neutronicsBCs[i])
+    except:
+      print("Error while reading case config.")
 
   def SaveCaseConfig(self):
     config = ConfigParser()
@@ -72,8 +105,8 @@ class Commands:
     config.set("NeutronicsUI", "shannonEntropyConvergenceCriteria", shannonEntropyConvergenceCriteria)
     config.set("NeutronicsUI", "neutronicsBCs", neutronicsBCs)
 
-    caseName = self.ui.loadedCaseLabel.text().split("\\")[-1]
-    filePath = self.cwd + "\\Cases\\" + caseName + "\\config.ini"
+    
+    filePath = self.cwd + "/Cases/" + self.ui.caseName + "/config.ini"
 
     with open(filePath, "w+") as file:
       config.write(file)
@@ -111,20 +144,18 @@ class Commands:
     line = "\nApp" + " : " + currentTime + " : " + "ERROR" + " : " + message + "\n\n"
     textBrowser.insertPlainText(line)
 
-
   def ReadAppConfig(self):
     cases = os.listdir(self.cwd + "/Cases/")
     
     config = ConfigParser()
 
-    config.read("App/config.ini")
+    config.read(self.cwd + "/App/config.ini")
     
     try:
       lastCase = config["DEFAULT"]["lastCase"]
 
       if(lastCase in cases):
-        
-        self.LoadCase(self.cwd + "\\Cases\\" + lastCase)
+        self.LoadCase(self.cwd + "/Cases/" + lastCase)
 
     except KeyError:
       self.AppendErrorToLog("Error loading the case from the previous session.")
@@ -153,7 +184,7 @@ class Commands:
       widget = QtWidgets.QComboBox()
       widget.addItems(list(colorDict.keys()))
       table.setCellWidget(rowIndex, 1, widget)
-      table.cellWidget(rowIndex, 1).currentTextChanged.connect(self.UpdateMeshPlot)
+      table.cellWidget(rowIndex, 1).currentTextChanged.connect(self.OnMeshTableColorChanged)
 
       item = QtWidgets.QTableWidgetItem()
       item.setFlags(QtCore.Qt.ItemFlag.ItemIsEnabled)
@@ -162,7 +193,7 @@ class Commands:
       widget = QtWidgets.QCheckBox()
       widget.setChecked(True)
       widget.setStyleSheet("margin-left:45%; margin-right:55%;")
-      widget.stateChanged.connect(self.UpdateMeshPlot)
+      widget.stateChanged.connect(self.OnMeshTableDisplayChanged)
       table.setCellWidget(rowIndex, 2, widget)
 
   def RebuildBoundariesInTables(self):
@@ -187,16 +218,16 @@ class Commands:
       widget = QtWidgets.QComboBox()
       widget.addItems(list(colorDict.keys()))
       table.setCellWidget(rowIndex, 1, widget)
-      table.cellWidget(rowIndex, 1).currentTextChanged.connect(self.UpdateMeshPlot)
+      table.cellWidget(rowIndex, 1).currentTextChanged.connect(self.OnMeshTableColorChanged)
 
       item = QtWidgets.QTableWidgetItem()
       item.setFlags(QtCore.Qt.ItemFlag.ItemIsEnabled)
       item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
       table.setItem(rowIndex, 2, item)
       widget = QtWidgets.QCheckBox()
-      widget.setChecked(True)
+      widget.setChecked(False)
       widget.setStyleSheet("margin-left:45%; margin-right:55%;")
-      widget.stateChanged.connect(self.UpdateMeshPlot)
+      widget.stateChanged.connect(self.OnMeshTableDisplayChanged)
       table.setCellWidget(rowIndex, 2, widget)
 
     table = self.ui.neutronicsUI.BCTable
@@ -220,8 +251,19 @@ class Commands:
       widget = QtWidgets.QComboBox()
       widget.addItems(self.ui.neutronicsBCs)
       table.setCellWidget(rowIndex, 1, widget)
+      table.cellWidget(rowIndex, 1).currentTextChanged.connect(self.OnNeutronicsBCChanged)
 
-  def UpdateMeshPlot(self, arg):
+  def OnNeutronicsBCChanged(self):
+    self.SaveCaseConfig()
+
+  def OnMeshTableColorChanged(self):
+    self.SaveCaseConfig()
+    self.UpdateMeshPlot()
+
+  def OnMeshTableDisplayChanged(self):
+    self.UpdateMeshPlot()
+
+  def UpdateMeshPlot(self):
     plotWidget = self.ui.meshUI.graph
     plotWidget.clear()
 
@@ -278,10 +320,11 @@ class Commands:
         
         plotItem = gl.GLMeshItem(meshdata=meshData, color=colorDict[table.cellWidget(i,1).currentText()], edgeColor = [0, 0, 0, 1], computeNormals=False, drawEdges=True)
         plotWidget.addItem(plotItem)
-      
-    
+       
   def LoadCase(self, path: str):
-    
+    caseName = path.split("Cases/")[-1]
+
+    self.ui.caseName = caseName
     meshFilePath = path + "/mesh.msh"
 
     if(not os.path.isfile(meshFilePath)):
@@ -293,7 +336,8 @@ class Commands:
     self.ClearAllTables()
     self.RebuildRegionsInTables()
     self.RebuildBoundariesInTables()
-    self.UpdateMeshPlot(1)
+    self.UpdateMeshPlot()
+    self.ApplyCaseConfig()
 
     limits = [self.ui.mesh.xMax, self.ui.mesh.yMax, self.ui.mesh.zMax, self.ui.mesh.xMin, self.ui.mesh.yMin, self.ui.mesh.zMin]
     limits = [abs(limit) for limit in limits]
@@ -303,6 +347,7 @@ class Commands:
     self.AppendInfoToLog("New mesh has been created.")
 
     self.ui.loadedCaseLabel.setText(path)
+    self.SaveAppConfig()
     self.AppendInfoToLog("Case successfully loaded from " + path + ".")
 
   def ClearAllTables(self):
@@ -365,6 +410,8 @@ class Commands:
 
       lineEdit.hide()
 
+      self.SaveCaseConfig()
+
 class InputHandler:
   commands: Commands
   cwd: str
@@ -391,7 +438,7 @@ class InputHandler:
     self.ui.neutronicsUI.shannonEntropyCriteriaButton.clicked.connect(self.OnShannonEntropyButtonPressed)
 
   def OnClearButtonPressed(self):
-    self.commands.SaveCaseConfig()
+    self.commands.ClearLog()
 
   def OnNOfParticlesButtonPressed(self):
     button = self.ui.neutronicsUI.nOfParticlesButton
@@ -423,7 +470,7 @@ class InputHandler:
 
   def OnLoadCaseBrowseButtonPressed(self):
 
-    dirName = QtWidgets.QFileDialog.getExistingDirectory(QtWidgets.QWidget(), "Select a Directory", self.cwd + "\Cases\\")
+    dirName = QtWidgets.QFileDialog.getExistingDirectory(QtWidgets.QWidget(), "Select a Directory", self.cwd + "/Cases/")
 
     if(dirName):
       self.commands.LoadCase(dirName)
@@ -442,6 +489,7 @@ class InputHandler:
     self.commands.UpdateMeshPlot(1)
 
   def OnBoundariesDisplayAllButtonPressed(self):
+
     button = self.ui.meshUI.boundariesDisplayAllButton
     currentButtonText = button.text()
 
