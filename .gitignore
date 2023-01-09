@@ -1,0 +1,21 @@
+/test.py
+/output - Copy.csv
+App/__pycache__/App.cpython-311.pyc
+App/__pycache__/HelperMath.cpython-311.pyc
+App/__pycache__/MCBC_Base.cpython-311.pyc
+App/__pycache__/MCBC.cpython-311.pyc
+App/__pycache__/Neutron.cpython-311.pyc
+App/__pycache__/RNG.cpython-311.pyc
+App/MeshReader/__pycache__/Elements.cpython-311.pyc
+App/MeshReader/__pycache__/Entities.cpython-311.pyc
+App/MeshReader/__pycache__/Mesh.cpython-311.pyc
+App/MeshReader/__pycache__/MeshPlotter.cpython-311.pyc
+App/MeshReader/__pycache__/MeshReader.cpython-311.pyc
+App/MeshReader/__pycache__/Nodes.cpython-311.pyc
+App/MeshReader/__pycache__/PhysicalGroups.cpython-311.pyc
+App/UI/__pycache__/ColorHelper.cpython-311.pyc
+App/UI/__pycache__/Commands.cpython-311.pyc
+App/UI/__pycache__/qtUI.cpython-311.pyc
+App/UI/__pycache__/UI.cpython-311.pyc
+Materials/__pycache__/IsotopeData.cpython-311.pyc
+Materials/__pycache__/MaterialBase.cpython-311.pyc
