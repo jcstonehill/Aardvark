@@ -24,6 +24,60 @@ class Commands:
 
     self.ReadAppConfig()
 
+  def SaveAppConfig(self):
+    config = ConfigParser()
+
+    caseName = self.ui.loadedCaseLabel.text().split("\\")[-1]
+    config["DEFAULT"]["lastCase"] = caseName
+
+    filePath = self.cwd + "App\config.ini"
+
+    with open(filePath, "w") as file:
+      config.write(file)
+
+  def SaveCaseConfig(self):
+    config = ConfigParser()
+    
+    regionsColorIndexes = ""
+    table = self.ui.meshUI.physicalVolumesTable
+    for i in range(table.rowCount()-1):
+      regionsColorIndexes = regionsColorIndexes +  str(table.cellWidget(i,1).currentIndex()) + ", "
+    regionsColorIndexes = regionsColorIndexes + str(table.cellWidget(table.rowCount()-1,1).currentIndex())
+
+    boundariesColorIndexes = ""
+    table = self.ui.meshUI.physicalBoundariesTable
+    for i in range(table.rowCount()-1):
+      boundariesColorIndexes = boundariesColorIndexes +  str(table.cellWidget(i,1).currentIndex()) + ", "
+    boundariesColorIndexes = boundariesColorIndexes + str(table.cellWidget(table.rowCount()-1,1).currentIndex())
+
+    config.add_section("MeshUI")
+    config.set("MeshUI", "regionsColorIndexes", regionsColorIndexes)
+    config.set("MeshUI", "boundariesColorIndexes", boundariesColorIndexes)
+    
+    nOfParticles = str(self.ui.neutronicsUI.nOfParticlesLabel.text())
+    nOfActiveBatches = str(self.ui.neutronicsUI.nOfActiveBatchesLabel.text())
+    criticalityConvergenceCriteria = str(self.ui.neutronicsUI.criticalityCriteriaLabel.text())
+    shannonEntropyConvergenceCriteria = str(self.ui.neutronicsUI.shannonEntropyCriteriaLabel.text())
+
+    neutronicsBCs = ""
+    table = self.ui.neutronicsUI.BCTable
+    for i in range(table.rowCount()-1):
+      neutronicsBCs = neutronicsBCs +  str(table.cellWidget(i,1).currentIndex()) + ", "
+    neutronicsBCs = neutronicsBCs + str(table.cellWidget(table.rowCount()-1,1).currentIndex())
+
+    config.add_section("NeutronicsUI")
+    config.set("NeutronicsUI", "nOfParticles", nOfParticles)
+    config.set("NeutronicsUI", "nOfActiveBatches", nOfActiveBatches)
+    config.set("NeutronicsUI", "criticalityConvergenceCriteria", criticalityConvergenceCriteria)
+    config.set("NeutronicsUI", "shannonEntropyConvergenceCriteria", shannonEntropyConvergenceCriteria)
+    config.set("NeutronicsUI", "neutronicsBCs", neutronicsBCs)
+
+    caseName = self.ui.loadedCaseLabel.text().split("\\")[-1]
+    filePath = self.cwd + "\\Cases\\" + caseName + "\\config.ini"
+
+    with open(filePath, "w+") as file:
+      config.write(file)
+
   def ClearLog(self):
     textBrowser = self.ui.logTextBrowser
     textBrowser.setPlainText("")
@@ -98,7 +152,6 @@ class Commands:
       table.setItem(rowIndex, 1, item)
       widget = QtWidgets.QComboBox()
       widget.addItems(list(colorDict.keys()))
-      widget.currentTextChanged
       table.setCellWidget(rowIndex, 1, widget)
       table.cellWidget(rowIndex, 1).currentTextChanged.connect(self.UpdateMeshPlot)
 
@@ -338,7 +391,7 @@ class InputHandler:
     self.ui.neutronicsUI.shannonEntropyCriteriaButton.clicked.connect(self.OnShannonEntropyButtonPressed)
 
   def OnClearButtonPressed(self):
-    pass
+    self.commands.SaveCaseConfig()
 
   def OnNOfParticlesButtonPressed(self):
     button = self.ui.neutronicsUI.nOfParticlesButton
