@@ -25,6 +25,18 @@ class MaterialBase():
   nuclides: list[Nuclide]
 
   @abstractmethod
+  def k(self, T):
+      pass
+
+  @abstractmethod
+  def Cp(self, T):
+      pass
+
+  @abstractmethod
+  def Rho(self, T):
+      pass
+
+  @abstractmethod
   def AtomDensity(self, T: float) -> float:
     pass
 

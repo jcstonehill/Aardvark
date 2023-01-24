@@ -1,24 +1,23 @@
 from App.MeshReader.Nodes import Node, Nodes
-from App.MCBC_Base import MCBC
-from Materials.MaterialBase import MaterialBase
 import itertools
-from App.HelperMath import IntersectionOfLineAndPlane
+from App.HelperMath import IntersectionOfLineAndPlane, TetrahedronVolume
+import numpy as np
 
 class ElementSurface:
   nodes: list[Node]
   normal: list[float]
-  neutronHandler: MCBC = None
+  area: float
+  centerPosition: list[float]
 
-  def __init__(self, nodes: list[Node]):
+  def __init__(self, nodes: list[Node], myElement):
     self.nodes = nodes
+    self.myElement = myElement
 
-    v1 = [self.nodes[1].x - self.nodes[0].x, self.nodes[1].y - self.nodes[0].y, self.nodes[1].z - self.nodes[0].z]
-    v2 = [self.nodes[2].x - self.nodes[0].x, self.nodes[2].y - self.nodes[0].y, self.nodes[2].z - self.nodes[0].z]
+    
 
-    self.normal = []
-    self.normal.append(v1[1]*v2[2] - v1[2]*v2[1])
-    self.normal.append(v1[0]*v2[2] - v1[2]*v2[0])
-    self.normal.append(v1[0]*v2[1] - v1[1]*v2[0])
+
+
+    
 
   def IsSister(self, sisterNodes: list[Node]) -> bool:
     for sisterNode in sisterNodes:
@@ -34,8 +33,6 @@ class ElementSurface:
       if(intersection[0] == startPosition[0] and intersection[1] == startPosition[1] and intersection[2] == startPosition[2]):
         intersection = None
 
-    
-
     return intersection
 
 class Element:
@@ -46,9 +43,9 @@ class Element:
   elementTag: int
   nodes: list[Node]
   elementSurfaces: list[ElementSurface]
-  material: MaterialBase
   centerPoint: list[float]
-  fluxTally: int
+
+  volume: float
 
   def __init__(self, entityDim: int, entityTag: int, elementType: int, numElementsInBlock: int, elementTag: int, nodes: list[int]):
     self.entityDim = entityDim
@@ -58,9 +55,21 @@ class Element:
     self.elementTag = elementTag
     self.nodes = nodes
 
+    if(self.entityDim == 3):
+      self.CalculateVolume()
+
     self.CalculateCenterPoint()
 
     self.CreateElementSurfaces()
+
+  def CalculateVolume(self):
+    vertices = []
+
+    for node in self.nodes:
+      vertices.append([node.x, node.y, node.z])
+
+    vertices = np.array(vertices)
+    self.volume = TetrahedronVolume(vertices=vertices)
 
   def CalculateCenterPoint(self):
     x = 0
@@ -85,14 +94,7 @@ class Element:
     if(self.entityDim == 3):
       nodeCombinations = itertools.combinations(self.nodes, 3)
       for nodeCombination in nodeCombinations:
-        self.elementSurfaces.append(ElementSurface(nodeCombination))
-
-  def TallyFlux(self):
-    self.fluxTally = self.fluxTally + 1
-
-  def ResetFluxTally(self):
-    self.fluxTally = 0
-    
+        self.elementSurfaces.append(ElementSurface(nodeCombination, self))
 
 class Elements():
   all: list[Element]

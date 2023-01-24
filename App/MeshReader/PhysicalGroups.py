@@ -10,7 +10,7 @@ class PhysicalVolume:
   
   def __init__(self, physicalTag: int, name: str):
     self.physicalTag = physicalTag
-    self.name = name
+    self.name = name[1:-1]
 
     self.elements = []
     self.entityTags = []
@@ -30,7 +30,7 @@ class PhysicalSurface:
   
   def __init__(self, physicalTag: int, name: str):
     self.physicalTag = physicalTag
-    self.name = name
+    self.name = name[1:-1]
 
     self.elementSurfaces = []
     self.entityTags = []

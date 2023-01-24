@@ -163,7 +163,6 @@ def ReadMesh(fileLocation) -> Mesh:
       elements = Elements(elementsInput, nodes)
 
   mesh.ConnectElementsToPhysicalGroups(elements)
-  mesh.ConnectNeighbors()
 
   file.close()
   node = mesh.physicalElements[0].elementSurfaces[0].nodes[0]

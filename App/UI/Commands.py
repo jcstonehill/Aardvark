@@ -500,4 +500,4 @@ class InputHandler:
       self.commands.HideAllBoundaries()
       button.setText("Show All")
 
-    self.commands.UpdateMeshPlot(1)
+    self.commands.UpdateMeshPlot()
