@@ -22,6 +22,7 @@ class FlowCell:
     def __init__(self, fp: FluidBase):
         self.fp = fp
         self.Q = 0
+        self.Qgen = 0
 
 
     def SolveNextPoint(self):
@@ -105,6 +106,10 @@ class FlowChannel:
 
         flowCell = self.GetFlowCellAtPosition(z)
         flowCell.Q = flowCell.Q + Q
+
+    def AddQGenToCellAtPosition(self, Qgen: float, z: float):
+        flowCell = self.GetFlowCellAtPosition(z)
+        flowCell.Qgen
 
     def GetTAtPosition(self, z: float):
         return self.GetFlowCellAtPosition(z).T

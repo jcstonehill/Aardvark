@@ -6,18 +6,33 @@ from App.THSolver.FlowChannel import FlowChannel
 from Materials.MaterialBase import MaterialBase
 
 class Problem:
+
     regions: list[Region]
     boundaries: list[Boundary]
     cells: list[Cell]
-    cellBoundaries: list[CellBoundary]
+    cellBoundaries: dict
+
+    numOfProcesses: int
+    numOfParticles: int
+    inactiveBatches: int
+    activeBatches: int
+
     flowChannels: list[FlowChannel]
 
+    
+    
+
     def __init__(self):
+        self.numOfProcesses = 1
+        self.numOfParticles = 1000
+        self.inactiveBatches = 1
+        self.activeBatches = 1
+
         self.regions = []
         self.boundaries = []
         self.cells = []
-        self.cellBoundaries = []
         self.flowChannels = []
+        self.cellBoundaries = {}
 
     def GetRegion(self, name: str) -> Region:
         for region in self.regions:
@@ -32,6 +47,15 @@ class Problem:
                 return boundary
 
         return None
+
+    def GetCell(self, id: int) -> Cell:
+        for cell in self.cells:
+            if(cell.id == id):
+                return cell
+
+    def SetBatches(self, inactiveBatches: int, activeBatches: int):
+        self.inactiveBatches = inactiveBatches
+        self.activeBatches = activeBatches
 
     def SetConstantTempThermalBC(self, name: str, T: float):
         boundary = self.GetBoundary(name)
@@ -52,9 +76,8 @@ class Problem:
         boundary = self.GetBoundary(boundaryName)
 
         for cell in region.cells:
-            for cellSurface in cell.surfaces:
-                cellSurface.boundary = CellBoundary([cell], cellSurface.centerPosition, cellSurface.area)
-                cellSurface.boundary.SetAdiabaticThermalBC()
+            for cellBoundary in cell.cellBoundaries:
+                cellBoundary.SetAdiabaticThermalBC()
 
         for cellBoundary in boundary.cellBoundaries:
             for cell in cellBoundary.cells:

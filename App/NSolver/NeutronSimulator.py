@@ -1,17 +1,17 @@
-from Neutron import Neutron
+from App.NSolver.Neutron import Neutron
 from Materials.MaterialBase import Nuclide
-from RNG import RandomFromRange
-from math import sqrt, acos, sin, cos, pi
-from MeshReader.Elements import ElementSurface
-from FissionSite import FissionSite
+from App.RNG import RandomFromRange
+from math import sqrt, acos, cos
+from App.NSolver.FissionSite import FissionSite
+from App.ProblemBuilder.CellBoundary import CellBoundary
 
 def DetermineNuclideHit(neutron: Neutron) -> Nuclide:
   divisions: list[float] = []
-  nuclides = neutron.currentElement.material.nuclides
+  nuclides = neutron.currentCell.material.nuclides
 
   for i in range(len(nuclides)):
     nuclideTotalXS = nuclides[i].xs.totalInterp(neutron.energy)
-    materialTotalXS = neutron.currentElement.material.TotalMicroXS(neutron.energy, 0)
+    materialTotalXS = neutron.currentCell.material.TotalMicroXS(neutron.energy, 0)
     divisionWeight = nuclides[i].atomicFraction * nuclideTotalXS / materialTotalXS
     
     if not divisions:
@@ -57,13 +57,9 @@ def HandleScattering(neutron: Neutron):
     neutron.energy = 1e-5
 
 def SimulateLifeOf(neutron: Neutron):
-  # x = [neutron.position[0]]
-  # y = [neutron.position[1]]
-  # z = [neutron.position[2]]
-
   newFissionSite = None
   fluxTallies = []
-  # print("New Neutron")
+
   while(neutron.isAlive):
 
     neutron.DetermineTravelDistance()
@@ -71,21 +67,21 @@ def SimulateLifeOf(neutron: Neutron):
     destination = neutron.GetDestination()
 
     intersection: list[float] = None
-    intersectedSurface: ElementSurface = None
+    intersectedBoundary: CellBoundary = None
 
-    for elementSurface in neutron.currentElement.elementSurfaces:
-      intersection = elementSurface.Intersection(neutron.position, destination)
+    for cellBoundary in neutron.currentCell.cellBoundaries:
+      intersection = cellBoundary.Intersection(neutron.position, destination)
 
       if(intersection is not None):
-        intersectedSurface = elementSurface
+        intersectedBoundary = cellBoundary
         break
 
     if(intersection is None):
       neutron.position = destination
 
-      scatteringXS = neutron.currentElement.material.ScatteringXS(neutron.energy, 0)
+      scatteringXS = neutron.currentCell.material.ScatteringXS(neutron.energy, 0)
 
-      totalXS = neutron.currentElement.material.TotalXS(neutron.energy, 0)
+      totalXS = neutron.currentCell.material.TotalXS(neutron.energy, 0)
 
       chanceOfScattering = scatteringXS / totalXS
 
@@ -95,19 +91,19 @@ def SimulateLifeOf(neutron: Neutron):
         HandleScattering(neutron)
 
       else:
-        fissionXS = neutron.currentElement.material.FissionXS(neutron.energy, 0)
-        absorptionXS = neutron.currentElement.material.AbsorptionXS(neutron.energy, 0)
+        fissionXS = neutron.currentCell.material.FissionXS(neutron.energy, 0)
+        absorptionXS = neutron.currentCell.material.AbsorptionXS(neutron.energy, 0)
         chanceOfFission = fissionXS / absorptionXS
 
         randomNumber = RandomFromRange(0,1)
 
         if(randomNumber < chanceOfFission):
-          newFissionSite = FissionSite(neutron.position, neutron.currentElement.elementTag)
+          newFissionSite = FissionSite(neutron.position, neutron.currentCell.id)
 
         neutron.isAlive = False
     else:
 
-      intersectedSurface.neutronHandler.Handle(neutron, intersection)
+      intersectedBoundary.mcbc.Handle(neutron, intersection)
 
-    fluxTallies.append(neutron.currentElement.elementTag)
+    fluxTallies.append(neutron.currentCell.id)
   return fluxTallies, newFissionSite

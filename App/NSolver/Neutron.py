@@ -1,6 +1,6 @@
 from App.RNG import RandomFromRange
 from math import sqrt, acos, sin, cos, pi
-from App.MeshReader.Elements import Element
+from App.ProblemBuilder.Cell import Cell
 import numpy as np
 
 class Neutron:
@@ -9,17 +9,16 @@ class Neutron:
   travelDistance: float
   energy: float
   isAlive: bool
-  currentElement: Element
+  currentCell: Cell
   debug = True
   id: int
 
   def DetermineTravelDistance(self):
-    totalCrossSection = self.currentElement.material.TotalXS(self.energy, 0)
+    totalCrossSection = self.currentCell.material.TotalXS(self.energy, 0)
     if(totalCrossSection == 0):
       self.travelDistance = 10**12
     else:
       self.travelDistance = -(1/totalCrossSection)*np.log(RandomFromRange(0, 1))
-
 
   def DetermineNewFlightAngle(self):
     mu = RandomFromRange(-1, 1)

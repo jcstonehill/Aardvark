@@ -1,82 +1,111 @@
-from App.MeshReader.Mesh import Mesh
+import gmsh
+import os
+import itertools
 from App.ProblemBuilder.Problem import Problem
 from App.ProblemBuilder.Region import Region
 from App.ProblemBuilder.Cell import Cell
 from App.ProblemBuilder.CellBoundary import CellBoundary
 from App.ProblemBuilder.Boundary import Boundary
+from App.THSolver.ThermalBC import ConductToNeighborThermalBC, AdiabaticThermalBC
+from App.NSolver.MCBC import TransportToNeighborMCBC, VoidMCBC
 
-def CreateProblemFrom(mesh: Mesh) -> Problem:
+def CreateProblem(filePath: str) -> Problem:
+
     problem = Problem()
 
-    for physicalVolume in mesh.physicalVolumes:
-        region = Region()
-        region.name = physicalVolume.name
+    gmsh.initialize()
+    gmsh.open(os.getcwd() + filePath)
 
-        for element in physicalVolume.elements:
-            
-            points = []
-            for node in element.nodes:
-                x = node.x
-                y = node.y
-                z = node.z
+    physicalVolumes = gmsh.model.getPhysicalGroups(dim=3)
 
-                points.append([x, y, z])
-            
-            cell = Cell(points)
+    for physicalVolume in physicalVolumes:
+        newRegion = Region()
 
-            region.cells.append(cell)
-            problem.cells.append(cell)
+        dim = 3
+        physicalTag = physicalVolume[1]
+
+        newRegion.name = gmsh.model.getPhysicalName(dim, physicalTag)
         
-        problem.regions.append(region)
+        entities = gmsh.model.getEntitiesForPhysicalGroup(dim, physicalTag)
 
-    for cell1 in problem.cells:
-        for cell2 in problem.cells:
-            if(cell1 != cell2):
-                for surface1 in cell1.surfaces:
-                    for surface2 in cell2.surfaces:
-                        if(surface1.HasSamePoints(surface2.points)):
-                            newCellBoundary = CellBoundary([cell1, cell2], surface1.centerPosition, surface1.area)
+        for entity in entities:
+            elementTags = gmsh.model.mesh.getElements(dim, entity)[1][0]
 
-                            surface1.boundary = newCellBoundary
-                            surface2.boundary = newCellBoundary
+            for elementTag in elementTags:
 
-                            problem.cellBoundaries.append(newCellBoundary)
+                nodeTags = gmsh.model.mesh.getElement(elementTag)[1]
+                
+                nodeTagCombinations = itertools.combinations(nodeTags, 3)
+                nodeTagCombinations = [list(combination) for combination in nodeTagCombinations]
 
-    for physicalSurface in mesh.physicalSurfaces:
+                sortedNodeTagCombinations = [sorted(nodeTagCombination) for nodeTagCombination in nodeTagCombinations]
+
+                cellBoundaries = []
+
+                for combination in sortedNodeTagCombinations:
+                    key = str(combination[0]) + "_" + str(combination[1]) + "_" + str(combination[2])
+
+                    if(key in problem.cellBoundaries):
+                        cellBoundaries.append(problem.cellBoundaries[key])
+                    else:
+                        
+                        points = []
+                        for nodeTag in combination:
+                            nodeCoord = gmsh.model.mesh.getNode(nodeTag)[0]
+
+                            points.append(list(nodeCoord))
+
+                        newCellBoundary = CellBoundary(points)
+                        problem.cellBoundaries[key] = newCellBoundary
+                        cellBoundaries.append(newCellBoundary)
+
+                points = []
+                for nodeTag in nodeTags:
+                    points.append(list(gmsh.model.mesh.getNode(nodeTag)[0]))
+
+                newCell = Cell(elementTag, points, cellBoundaries)
+                newRegion.cells.append(newCell)
+                problem.cells.append(newCell)
+
+        problem.regions.append(newRegion)
+
+    for cell in problem.cells:
+        for cellBoundary in cell.cellBoundaries:
+            cellBoundary.cells.append(cell)
+
+    physicalSurfaces = gmsh.model.getPhysicalGroups(dim=2)
+
+    for physicalSurface in physicalSurfaces:
         newBoundary = Boundary()
-        newBoundary.name = physicalSurface.name
 
-        for elementSurface in physicalSurface.elementSurfaces:
-            points = []
-            for node in elementSurface.nodes:
-                points.append([node.x, node.y, node.z])
+        dim = 2
+        physicalTag = physicalSurface[1]
 
-            for cell in problem.cells:
-                for cellSurface in cell.surfaces:
-                    if(cellSurface.HasSamePoints(points)):
-                        newCellBoundary = CellBoundary([cell], cellSurface.centerPosition, cellSurface.area)
+        newBoundary.name = gmsh.model.getPhysicalName(dim, physicalTag)
 
-                        newBoundary.cellBoundaries.append(newCellBoundary)
-                        problem.cellBoundaries.append(newCellBoundary)
+        entities = gmsh.model.getEntitiesForPhysicalGroup(dim, physicalTag)
 
-                        cellSurface.boundary = newCellBoundary
+        for entity in entities:
+            elementTags = gmsh.model.mesh.getElements(dim, entity)[1][0]
+
+            for elementTag in elementTags:
+
+                nodeTags = list(gmsh.model.mesh.getElement(elementTag)[1])
+                sortedNodeTags = sorted(nodeTags)
+
+                key = str(sortedNodeTags[0]) + "_" + str(sortedNodeTags[1]) + "_" + str(sortedNodeTags[2])
+                
+                newBoundary.cellBoundaries.append(problem.cellBoundaries[key])
 
         problem.boundaries.append(newBoundary)
 
-    for cell in problem.cells:
-        for cellSurface in cell.surfaces:
-            
-            if(cellSurface.boundary == None):
-                newCellBoundary = CellBoundary([cell], cellSurface.centerPosition, cellSurface.area)
-
-                problem.cellBoundaries.append(newCellBoundary)
-
-    for cellBoundary in problem.cellBoundaries:
-        if(len(cellBoundary.cells) == 1):
-            cellBoundary.SetAdiabaticThermalBC()
-        else:
-            cellBoundary.SetConductToNeighborThermalBC()
+    for cellBoundary in problem.cellBoundaries.values():
+        
+        if(len(cellBoundary.cells) == 2):
+            cellBoundary.thermalBC = ConductToNeighborThermalBC(cellBoundary.cells, cellBoundary.area)
+            cellBoundary.mcbc = TransportToNeighborMCBC(cellBoundary.cells)
+        elif(len(cellBoundary.cells) == 1):
+            cellBoundary.thermalBC = AdiabaticThermalBC()
+            cellBoundary.mcbc = VoidMCBC()
 
     return problem
-
-                

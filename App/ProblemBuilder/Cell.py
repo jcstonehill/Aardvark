@@ -1,37 +1,42 @@
 from Materials.MaterialBase import MaterialBase
-from App.ProblemBuilder.CellSurface import CellSurface
-from App.HelperMath import IntersectionOfLineAndPlane, TetrahedronVolume
-import itertools
+from App.ProblemBuilder.CellBoundary import CellBoundary
+from App.HelperMath import TetrahedronVolume
 import numpy as np
 
 class Cell:
+
+    id: int
+
+    fissionsPerBatch: list[float]
+
     T: float
     previousT: float
     QGen: float
     Q: float
-    surfaces: list[CellSurface]
-    points: list[list[float]]
-    material: MaterialBase
-    centerPosition: list[float]
 
-    def __init__(self, points: list[list[float]]):
+    material: MaterialBase
+    centerPoint: list[float]
+
+    points: list[list[float]]
+    cellBoundaries: list[CellBoundary]
+    flux: list[int]
+
+    def __init__(self, cellID: int, points: list[list[float]], cellBoundaries: list[CellBoundary]):
+
+        self.id = cellID
+
+        self.Q = 0
         self.T = 300
         self.previousQ = 0
         self.QGen = 0
-        self.cellBoundaries = []
-        self.points = points
+        
+        self.flux = []
 
-        self.CreateCellSurfaces()
+        self.points = points
+        self.cellBoundaries = cellBoundaries
+
         self.CalculateCenter()
         self.CalculateVolume()
-
-    def CreateCellSurfaces(self):
-        self.surfaces = []
-
-        nodeCombinations = itertools.combinations(self.points, 3)
-
-        for nodeCombination in nodeCombinations:
-            self.surfaces.append(CellSurface(nodeCombination))
 
     def CalculateCenter(self):
         x = 0
@@ -49,7 +54,7 @@ class Cell:
         y = y / numOfPoints
         z = z / numOfPoints
 
-        self.centerPosition = [x, y, z]
+        self.centerPoint = [x, y, z]
 
     def CalculateVolume(self):
         vertices = np.array(self.points)
@@ -75,6 +80,3 @@ class Cell:
 
         self.previousT = self.T
         self.T = self.T + (dt*self.Q/(v*rho*cp))
-
-    def Error(self) -> float:
-        return abs(self.previousT - self.T)
